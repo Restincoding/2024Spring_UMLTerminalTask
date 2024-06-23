@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Todo List</title>
+    <style>
+        .main-wrapper {
+            margin-top: 100px;
+            margin-left: 100px;
+        }
+        .btn-group {
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .completed {
+            text-decoration: line-through;
+            color: gray;
+        }
+        .high-priority {
+            color: red;
+        }
+        .icon-complete {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            line-height: 20px;
+            text-align: center;
+            margin-left: 10px;
+        }
+        .icon-complete-active {
+            border-color: green;
+            color: green;
+        }
+        .btn-group {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .btn-complete, .btn-delete {
+            padding: 5px 10px;
+            cursor: pointer;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            margin-right: 5px;
+        }
+
+        .btn-complete-active {
+            background-color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <form id="form">
+            <input id="title" class="input-todo" type="text" placeholder="你想做点什么呢？">
+            <label>
+                <input id="priority" type="checkbox" class="priority-checkbox"> 是否为高优先事项？
+            </label>
+            <button type="submit">添加任务</button>
+        </form>
+        <h3>待办事项(<span id="todocount">0</span>)</h3>
+        <ul id="todolist" class="todo-list"></ul>
+        <h3>已完成事项(<span id="donecount">0</span>)</h3>
+        <ul id="donelist" class="done-list"></ul>
+    </div>
+    <script>
+        // model.js
+        class Task {
+            constructor(title, done = false, priority = false) {
+                this.title = title;
+                this.done = done;
+                this.priority = priority;
+            }
+        }
+
+        class TaskModel {
+            constructor() {
+                this.tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            }
+
+            addTask(task) {
+                this.tasks.push(task);
+                this._saveTasks();
+            }
+
+            updateTask(index, updatedTask) {
+                this.tasks[index] = updatedTask;
+                this._saveTasks();
+            }
+
+            removeTask(index) {
+                this.tasks.splice(index, 1);
+                this._saveTasks();
+            }
+
+            _saveTasks() {
+                localStorage.setItem('tasks', JSON.stringify(this.tasks));
+            }
+
+            getTasks() {
+                return this.tasks;
+            }
+        }
+
+        // view.js
+        class TaskView {
+            constructor() {
+                this.todoListElement = document.getElementById('todolist');
+                this.doneListElement = document.getElementById('donelist');
+                this.todoCountElement = document.getElementById('todocount');
+                this.doneCountElement = document.getElementById('donecount');
+            }
+
+            displayTasks(tasks) {
+                this.todoListElement.innerHTML = '';
+                this.doneListElement.innerHTML = '';
+                let todoCount = 0;
+                let doneCount = 0;
+
+                tasks.forEach((task, index) => {
+                    const taskElement = document.createElement('li');
+                    taskElement.className = task.priority ? 'high-priority' : '';
+                    taskElement.innerHTML = `
+                        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="taskController.toggleTask(${index})">
+                        <p class="${task.done ? 'completed' : ''}" onclick="taskController.editTask(${index})">${task.title}</p>
+                        <div class="btn-group">
+                            <button class="btn-complete ${task.done ? 'btn-complete-active' : ''}" onclick="taskController.toggleTask(${index})">${task.done ? '取消完成' : '完成'}</button>
+                            <button class="btn-delete" onclick="taskController.removeTask(${index})">删除</button>
+                        </div>
+                    `;
+
+                    if (task.done) {
+                        this.doneListElement.appendChild(taskElement);
+                        doneCount++;
+                    } else {
+                        this.todoListElement.appendChild(taskElement);
+                        todoCount++;
+                    }
+                });
+
+                this.todoCountElement.innerText = todoCount;
+                this.doneCountElement.innerText = doneCount;
+            }
+        }
+
+        // controller.js
+        class TaskController {
+            constructor(model, view) {
+                this.model = model;
+                this.view = view;
+                this.view.displayTasks(this.model.getTasks());
+            }
+
+            addTask(title, priority) {
+                if (title.trim() === '') {
+                    alert('内容不能为空');
+                    return;
+                }
+                const task = new Task(title, false, priority);
+                this.model.addTask(task);
+                this.view.displayTasks(this.model.getTasks());
+            }
+
+            toggleTask(index) {
+                const tasks = this.model.getTasks();
+                tasks[index].done = !tasks[index].done;
+                this.model.updateTask(index, tasks[index]);
+                this.view.displayTasks(this.model.getTasks());
+            }
+
+            editTask(index) {
+                const tasks = this.model.getTasks();
+                const newTitle = prompt('编辑任务', tasks[index].title);
+                if (newTitle !== null && newTitle.trim() !== '') {
+                    tasks[index].title = newTitle.trim();
+                    this.model.updateTask(index, tasks[index]);
+                    this.view.displayTasks(this.model.getTasks());
+                }
+            }
+
+            removeTask(index) {
+                this.model.removeTask(index);
+                this.view.displayTasks(this.model.getTasks());
+            }
+        }
+
+        const taskModel = new TaskModel();
+        const taskView = new TaskView();
+        const taskController = new TaskController(taskModel, taskView);
+
+        document.getElementById('form').onsubmit = (event) => {
+            event.preventDefault(); // 阻止表单的默认提交行为
+            const title = document.getElementById('title').value;
+            const priority = document.getElementById('priority').checked;
+            taskController.addTask(title, priority);
+            document.getElementById('form').reset();
+        };
+
+    </script>
+</body>
+</html>
